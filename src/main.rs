@@ -30,99 +30,65 @@ fn main() -> Result<()> {
     let cli = Trolley::try_parse()?;
     
     match cli.command {
-        Commands::Init { project_name } => {
-            println!("Initializing project: {}", project_name);
-            let status = Command::new("anchor")
-                .arg("init")
-                .arg(project_name)
-                .status()?;
-            
-            if !status.success() {
-                anyhow::bail!("anchor init failed");
-            } else {
-                println!("anchor init succeeded");
-            }
-        }
-        Commands::Build => {
-            let status = Command::new("anchor")
-                .arg("build")
-                .spawn()?
-                .wait()
-                .with_context(|| "anchor build failed")?;
-            
-            if !status.success() {
-                anyhow::bail!("anchor build failed");
-            } else {
-                println!("anchor build succeeded");
-            }
-        }
-        Commands::Generate => {
-            let status = Command::new("bun")
-                .arg("run")
-                .arg("generate")
-                .spawn()?
-                .wait()
-                .with_context(|| "anchor generate failed")?;
-            
-            if !status.success() {
-                anyhow::bail!("anchor generate failed");
-            } else {
-                println!("anchor generate succeeded");
-            }
-        }
-        Commands::Deploy => {
-            println!("deploying...");
-            
-            let target_deploy_dir = Path::new("target/deploy");
-            if !target_deploy_dir.exists() {
-                anyhow::bail!("target/deploy directory not found. Please run 'bunchor build' first.");
-            }
-            
-            let mut so_file = None;
-            for entry in fs::read_dir(target_deploy_dir)? {
-                let entry = entry?;
-                let path = entry.path();
-                if path.extension().and_then(|s| s.to_str()) == Some("so") {
-                    so_file = Some(path);
-                    break;
-                }
-            }
-
-            so_file.ok_or_else(|| {
-                anyhow::anyhow!(
-                    "No .so file found in target/deploy. Please run 'bunchor build' first."
-                )
-            })?;
-            
-            let status = Command::new("anchor")
-                .arg("deploy")
-                .spawn()?
-                .wait()
-                .with_context(|| "anchor deploy failed")?;
-            
-            if !status.success() {
-                anyhow::bail!("anchor deploy failed");
-            } else {
-                println!("anchor deploy succeeded");
-            }
-        }
-        Commands::Test => {
-            let status = Command::new("anchor")
-                .arg("test")
-                .spawn()?
-                .wait()
-                .with_context(|| "anchor test failed")?;
-            
-            if !status.success() {
-                anyhow::bail!("anchor test failed");
-            } else {
-                println!("anchor test succeeded");
-            }
-        }
+        Commands::Init { project_name } => bunchor_init(project_name)?,
+        Commands::Build => bunchor_build()?,
+        Commands::Generate => bunchor_generate()?,
+        Commands::Deploy => bunchor_deploy()?,
+        Commands::Test => bunchor_test()?,
         Commands::Help => bunchor_help()?
     }
     
     Ok(())
+}
+
+fn bunchor_init(project_name: String) -> Result<()> {
+    println!("Initializing project: {}", project_name);
+    
+    run_command(Command::new("anchor").arg("init").arg(project_name), "anchor init", Some("Successfully initialized default anchor project"))?;
+    
+    // run_command(Command::new("rm").arg("yarn.lock"), "rm yarn.lock", None)?;
+    // run_command(Command::new("bun").arg("install"), "bun install", Some("Successfully installed dependencies"))?;
+    
+    Ok(())
+}
+
+fn bunchor_build() -> Result<()> {
+    run_command(Command::new("anchor").arg("build"), "anchor build", Some("Successfully built anchor program"))
+}
+
+fn bunchor_generate() -> Result<()> {
+    run_command(Command::new("bun").arg("run").arg("generate"), "bun run generate", Some("Successfully generated codama client"))
+}
+
+fn bunchor_deploy() -> Result<()> {
+    println!("deploying...");
+    
+    let target_deploy_dir = Path::new("target/deploy");
+    if !target_deploy_dir.exists() {
+        anyhow::bail!("target/deploy directory not found. Please run 'bunchor build' first.");
+    }
+    
+    let mut so_file = None;
+    for entry in fs::read_dir(target_deploy_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.extension().and_then(|s| s.to_str()) == Some("so") {
+            so_file = Some(path);
+            break;
+        }
+    }
+
+    so_file.ok_or_else(|| {
+        anyhow::anyhow!(
+            "No .so file found in target/deploy. Please run 'bunchor build' first."
+        )
+    })?;
+    
+    run_command(Command::new("anchor").arg("deploy"), "anchor deploy", Some("Successfully deployed anchor program"))
+}
+
+fn bunchor_test() -> Result<()> {
+    run_command(Command::new("anchor").arg("test"), "anchor test", Some("Successfully tested anchor program"))
 }
 
 fn bunchor_help() -> Result<()> {
@@ -135,4 +101,21 @@ fn bunchor_help() -> Result<()> {
     println!("  bunchor test                - Test the project");
     
     Ok(())
+}
+
+fn run_command(cmd: &mut Command, cmd_str: &str, success_msg: Option<&str>) -> Result<()> {
+    let status = cmd.status()
+        .with_context(|| format!("Failed to execute process: {}", cmd_str))?;
+
+    if status.success() {
+        if let Some(success_msg) = success_msg {
+            println!("{}", success_msg);
+        }
+        Ok(())
+    } else {
+        // The child process already printed its error to stderr.
+        // We exit with its code so the user doesn't get a redundant 
+        // "anyhow" error message from our wrapper.
+        std::process::exit(status.code().unwrap_or(1));
+    }
 }
