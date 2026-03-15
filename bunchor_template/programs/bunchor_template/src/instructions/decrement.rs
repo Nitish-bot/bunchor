@@ -15,7 +15,7 @@ pub struct Decrement<'info> {
 
 impl<'info> Decrement<'info> {
     pub fn decrement(&mut self) -> Result<()> {
-        self.counter
+        self.counter.value = self.counter
             .value
             .checked_sub(1)
             .ok_or(TemplateError::IntegerUnderflow)?;

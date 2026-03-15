@@ -9,7 +9,7 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = user,
-        space = Counter::INIT_SPACE,
+        space = 8 + Counter::INIT_SPACE,
         seeds = [b"counter"],
         bump,
     )]
@@ -20,7 +20,7 @@ pub struct Initialize<'info> {
 
 impl<'info> Initialize<'info> {
     pub fn initialize(&mut self, bump: u8) -> Result<()> {
-        self.counter.bump = bump;
+        self.counter.set_inner(Counter { value: 0, bump, });
         Ok(())
     }
 }

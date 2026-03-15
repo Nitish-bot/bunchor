@@ -15,7 +15,7 @@ pub struct Increment<'info> {
 
 impl<'info> Increment<'info> {
     pub fn increment(&mut self) -> Result<()> {
-        self.counter
+        self.counter.value = self.counter
             .value
             .checked_add(1)
             .ok_or(TemplateError::IntegerOverflow)?;
