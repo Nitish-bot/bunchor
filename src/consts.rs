@@ -142,6 +142,111 @@ pub struct Counter {
 }
 "#;
 
+pub fn package_json_contents(project_name: &str) -> String {
+    format!(
+        r#"{{
+  "name": "{}",
+  "scripts": {{
+    "format:fix": "prettier tests/* --write",
+    "format": "prettier tests/* --check",
+    "generate": "codama run js",
+    "setup": "anchor build && codama run js",
+    "test": "anchor test",
+    "test:devnet": "CLUSTER=DEVNET anchor test --provider devnet --skip-deploy"
+  }},
+  "dependencies": {{
+    "@solana/kit": "^6.3.1",
+    "solana-kite": "^3.2.1"
+  }},
+  "devDependencies": {{
+    "@codama/nodes-from-anchor": "^1.3.9",
+    "@codama/renderers-js": "^2.0.3",
+    "@types/bun": "^1.3.10",
+    "codama": "^1.5.1",
+    "prettier": "^3.8.1"
+  }}
+}}"#,
+        project_name
+    )
+}
+
+pub const TS_CONFIG_CONTENTS: &str = r#"{
+  "compilerOptions": {
+    // Environment setup & latest features
+    "lib": ["ESNext"],
+    "target": "ESNext",
+    "module": "Preserve",
+    "moduleDetection": "force",
+    "jsx": "react-jsx",
+    "allowJs": true,
+
+    // Bundler mode
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+
+    // Best practices
+    "strict": true,
+    "skipLibCheck": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+
+    // Some stricter flags (disabled by default)
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noPropertyAccessFromIndexSignature": false,
+    
+    "baseUrl": ".",
+    "paths": {
+      "@client/*": ["app/client/src/generated/*"]
+    }
+  }
+}"#;
+
+pub fn codama_contents(project_name: &str) -> String {
+    format!(
+        r#"{{
+  "idl": "./target/idl/{}.json",
+  "scripts": {{
+    "js": [
+      {{
+        "from": "@codama/renderers-js",
+        "args": ["./app/generated/client"]
+      }}
+    ]
+  }}
+}}"#,
+        project_name
+    )
+}
+
+pub const BUNFIG_CONTENTS: &str = r#"[alias]
+"@client/" = "./app/client/src/generated/"
+"#;
+
+pub const ANCHOR_CONTENTS: &str = r#"[toolchain]
+package_manager = "bun"
+
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+bunchor_template = "7LBeQpPgzzjEWw4z7S5aJF3zyyqMFpKfMn1hSg7DKxL9"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "bun test --timeout 1000000 tests/*.test.ts"
+"#;
+
 pub const TEST_CONTENT: &str = r#"import {
   assertAccountExists,
   createKeyPairSignerFromBytes,
@@ -260,16 +365,13 @@ describe("counter", async () => {
 });
 "#;
 
-pub fn codama_contents(project_name: &str) -> String {
-    format!(r#"{{
-  "idl": "./target/idl/{}.json",
-  "scripts": {{
-    "js": [
-      {{
-        "from": "@codama/renderers-js",
-        "args": ["./app/generated/client"]
-      }}
-    ]
-  }}
-}}"#, project_name)
-}
+pub const GITIGNORE_CONTENTS: &str = r#".anchor
+.DS_Store
+target
+**/*.rs.bk
+node_modules
+test-ledger
+.yarn
+app/client
+app/node_modules
+app/dist"#;

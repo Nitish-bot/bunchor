@@ -7,8 +7,9 @@ use clap::{Parser, Subcommand};
 
 mod consts;
 use crate::consts::{
-    COUNTER_DECREMENT, COUNTER_ERRORS, COUNTER_INCREMENT, COUNTER_INITIALIZE,
-    COUNTER_INSTRUCTIONS_MOD, COUNTER_LIB, COUNTER_STATE_COUNTER, COUNTER_STATE_MOD, TEST_CONTENT, codama_contents,
+    codama_contents, package_json_contents, ANCHOR_CONTENTS, BUNFIG_CONTENTS, COUNTER_DECREMENT,
+    COUNTER_ERRORS, COUNTER_INCREMENT, COUNTER_INITIALIZE, COUNTER_INSTRUCTIONS_MOD, COUNTER_LIB,
+    COUNTER_STATE_COUNTER, COUNTER_STATE_MOD, GITIGNORE_CONTENTS, TEST_CONTENT, TS_CONFIG_CONTENTS,
 };
 
 #[derive(Parser)]
@@ -51,7 +52,7 @@ fn bunchor_init(project_name: String) -> Result<()> {
     println!("Initializing project: {}", project_name);
 
     run_command(
-        Command::new("anchor").arg("init").arg(&project_name),
+        Command::new("anchor").arg("init").arg(&project_name).arg("--no-install"),
         "anchor init",
         Some("Successfully initialized default anchor project"),
     )?;
@@ -61,12 +62,18 @@ fn bunchor_init(project_name: String) -> Result<()> {
 
     clean_project(project_path, &tests_path)?;
     write_anchor_program(&project_name, project_path)?;
-    write_client_gen_and_tests(&project_name, project_path, &tests_path)?;
+    env_and_tests_setup(&project_name, project_path, &tests_path)?;
 
     run_command(
         Command::new("bun").arg("install").current_dir(project_path),
         "bun install",
         Some("Successfully installed dependencies"),
+    )?;
+
+    run_command(
+        Command::new("anchor").arg("keys").arg("sync"),
+        "anchor keys sync",
+        Some("Successfully synced anchor keys"),
     )?;
 
     Ok(())
@@ -210,13 +217,33 @@ fn write_anchor_program(project_name: &str, project_path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn write_client_gen_and_tests(project_name: &str, project_path: &Path, tests_path: &Path) -> Result<()> {
+fn env_and_tests_setup(project_name: &str, project_path: &Path, tests_path: &Path) -> Result<()> {
+    let package_json_path = project_path.join("package.json");
+    let package_json_contents = package_json_contents(project_name);
+
+    let tsconfig_path = project_path.join("tsconfig.json");
+    let tsconfig_contents = TS_CONFIG_CONTENTS;
+
     let codama_json_path = project_path.join("codama.json");
     let codama_contents = codama_contents(project_name);
-    
+
+    let bunfig_toml_path = project_path.join("bunfig.toml");
+    let bunfig_contents = BUNFIG_CONTENTS;
+
+    let anchor_toml_path = project_path.join("anchor.toml");
+    let anchor_contents = ANCHOR_CONTENTS;
+
     let test_file_path = tests_path.join(format!("{}.test.ts", project_name));
-    fs::write(&test_file_path, TEST_CONTENT).context("Failed to write test file")?;
+    let gitignore_path = project_path.join(".gitignore");
+    let gitignore_contents = GITIGNORE_CONTENTS;
+
+    fs::write(&package_json_path, package_json_contents).context("Failed to write package.json")?;
+    fs::write(&tsconfig_path, tsconfig_contents).context("Failed to write tsconfig.json")?;
     fs::write(&codama_json_path, codama_contents).context("Failed to write codama.json")?;
-    
+    fs::write(&bunfig_toml_path, bunfig_contents).context("Failed to write bunfig.toml")?;
+    fs::write(&anchor_toml_path, anchor_contents).context("Failed to write anchor.toml")?;
+    fs::write(&test_file_path, TEST_CONTENT).context("Failed to write test file")?;
+    fs::write(&gitignore_path, gitignore_contents).context("Failed to write .gitignore")?;
+
     Ok(())
 }
