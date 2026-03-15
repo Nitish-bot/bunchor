@@ -49,12 +49,10 @@ fn main() -> Result<()> {
 }
 
 fn bunchor_init(project_name: String) -> Result<()> {
-    println!("Initializing project: {}", project_name);
-
     run_command(
         Command::new("anchor").arg("init").arg(&project_name).arg("--no-install"),
         "anchor init",
-        Some("Successfully initialized default anchor project"),
+        None,
     )?;
 
     let project_path = Path::new(&project_name);
@@ -71,7 +69,7 @@ fn bunchor_init(project_name: String) -> Result<()> {
     )?;
 
     run_command(
-        Command::new("anchor").arg("keys").arg("sync"),
+        Command::new("anchor").arg("keys").arg("sync").current_dir(project_path),
         "anchor keys sync",
         Some("Successfully synced anchor keys"),
     )?;
@@ -151,7 +149,7 @@ fn run_command(cmd: &mut Command, cmd_str: &str, success_msg: Option<&str>) -> R
 
     if status.success() {
         if let Some(success_msg) = success_msg {
-            println!("{}", success_msg);
+            println!("\n{}", success_msg);
         }
         Ok(())
     } else {
