@@ -8,7 +8,7 @@ use clap::{Parser, Subcommand};
 mod consts;
 use crate::consts::{
     COUNTER_DECREMENT, COUNTER_ERRORS, COUNTER_INCREMENT, COUNTER_INITIALIZE,
-    COUNTER_INSTRUCTIONS_MOD, COUNTER_LIB, COUNTER_STATE_COUNTER, COUNTER_STATE_MOD, TEST_CONTENT,
+    COUNTER_INSTRUCTIONS_MOD, COUNTER_LIB, COUNTER_STATE_COUNTER, COUNTER_STATE_MOD, TEST_CONTENT, codama_contents,
 };
 
 #[derive(Parser)]
@@ -60,10 +60,8 @@ fn bunchor_init(project_name: String) -> Result<()> {
     let tests_path = project_path.join("tests");
 
     clean_project(project_path, &tests_path)?;
-    write_anchor_program(project_path, &project_name)?;
-
-    let test_file = tests_path.join(format!("{}.test.ts", &project_name));
-    fs::write(&test_file, TEST_CONTENT).context("Failed to write test file")?;
+    write_anchor_program(&project_name, project_path)?;
+    write_client_gen_and_tests(&project_name, project_path, &tests_path)?;
 
     run_command(
         Command::new("bun").arg("install").current_dir(project_path),
@@ -158,19 +156,19 @@ fn run_command(cmd: &mut Command, cmd_str: &str, success_msg: Option<&str>) -> R
 }
 
 fn clean_project(project_path: &Path, tests_path: &PathBuf) -> Result<()> {
-    let yarn_lock = project_path.join("yarn.lock");
-    if yarn_lock.exists() {
-        fs::remove_file(&yarn_lock).context("Failed to remove yarn.lock")?;
+    let yarn_lock_path = project_path.join("yarn.lock");
+    if yarn_lock_path.exists() {
+        fs::remove_file(&yarn_lock_path).context("Failed to remove yarn.lock")?;
     }
 
-    let migrations = project_path.join("migrations");
-    if migrations.exists() {
-        fs::remove_dir_all(&migrations).context("Failed to remove migrations")?;
+    let migrations_path = project_path.join("migrations");
+    if migrations_path.exists() {
+        fs::remove_dir_all(&migrations_path).context("Failed to remove migrations")?;
     }
 
-    let app_folder_path = project_path.join("app");
-    if app_folder_path.exists() {
-        fs::remove_dir_all(&app_folder_path).context("Failed to remove app dir")?;
+    let app_path = project_path.join("app");
+    if app_path.exists() {
+        fs::remove_dir_all(&app_path).context("Failed to remove app dir")?;
     }
 
     if tests_path.exists() {
@@ -178,10 +176,15 @@ fn clean_project(project_path: &Path, tests_path: &PathBuf) -> Result<()> {
     }
     fs::create_dir_all(tests_path).context("Failed to create tests dir")?;
 
+    let prettierignore_path = project_path.join(".prettierignore");
+    if prettierignore_path.exists() {
+        fs::remove_file(&prettierignore_path).context("Failed to remove .prettierignore")?;
+    }
+
     Ok(())
 }
 
-fn write_anchor_program(project_path: &Path, project_name: &str) -> Result<()> {
+fn write_anchor_program(project_name: &str, project_path: &Path) -> Result<()> {
     let program_path = project_path.join("programs").join(project_name).join("src");
     let instructions_path = program_path.join("instructions");
     let state_path = program_path.join("state");
@@ -204,5 +207,16 @@ fn write_anchor_program(project_path: &Path, project_name: &str) -> Result<()> {
     fs::write(instructions_path.join("increment.rs"), COUNTER_INCREMENT)?;
     fs::write(instructions_path.join("decrement.rs"), COUNTER_DECREMENT)?;
 
+    Ok(())
+}
+
+fn write_client_gen_and_tests(project_name: &str, project_path: &Path, tests_path: &Path) -> Result<()> {
+    let codama_json_path = project_path.join("codama.json");
+    let codama_contents = codama_contents(project_name);
+    
+    let test_file_path = tests_path.join(format!("{}.test.ts", project_name));
+    fs::write(&test_file_path, TEST_CONTENT).context("Failed to write test file")?;
+    fs::write(&codama_json_path, codama_contents).context("Failed to write codama.json")?;
+    
     Ok(())
 }
