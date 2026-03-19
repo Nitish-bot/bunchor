@@ -1,4 +1,6 @@
-pub const COUNTER_LIB: &str = r#"use anchor_lang::prelude::*;
+pub fn counter_lib(project_name: &str) -> String {
+    format!(
+        r#"use anchor_lang::prelude::*;
 
 pub mod errors;
 pub mod instructions;
@@ -9,23 +11,26 @@ use instructions::*;
 declare_id!("7LBeQpPgzzjEWw4z7S5aJF3zyyqMFpKfMn1hSg7DKxL9");
 
 #[program]
-pub mod bunchor_template {
+pub mod {} {{
 
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {{
         ctx.accounts.initialize(ctx.bumps.counter)
-    }
+    }}
 
-    pub fn increment(ctx: Context<Increment>) -> Result<()> {
+    pub fn increment(ctx: Context<Increment>) -> Result<()> {{
         ctx.accounts.increment()
-    }
+    }}
 
-    pub fn decrement(ctx: Context<Decrement>) -> Result<()> {
+    pub fn decrement(ctx: Context<Decrement>) -> Result<()> {{
         ctx.accounts.decrement()
-    }
+    }}
+}}
+"#,
+        project_name
+    )
 }
-"#;
 
 pub const COUNTER_ERRORS: &str = r#"use anchor_lang::prelude::*;
 
@@ -58,7 +63,7 @@ pub struct Initialize<'info> {
     #[account(
         init,
         payer = user,
-        space = Counter::INIT_SPACE,
+        space = 8 + Counter::INIT_SPACE,
         seeds = [b"counter"],
         bump,
     )]
@@ -92,7 +97,7 @@ pub struct Increment<'info> {
 
 impl<'info> Increment<'info> {
     pub fn increment(&mut self) -> Result<()> {
-        self.counter
+        self.counter.value = self.counter
             .value
             .checked_add(1)
             .ok_or(TemplateError::IntegerOverflow)?;
@@ -118,7 +123,7 @@ pub struct Decrement<'info> {
 
 impl<'info> Decrement<'info> {
     pub fn decrement(&mut self) -> Result<()> {
-        self.counter
+        self.counter.value = self.counter
             .value
             .checked_sub(1)
             .ok_or(TemplateError::IntegerUnderflow)?;
@@ -213,7 +218,7 @@ pub fn codama_contents(project_name: &str) -> String {
     "js": [
       {{
         "from": "@codama/renderers-js",
-        "args": ["./app/generated/client"]
+        "args": ["./app/client"]
       }}
     ]
   }}
@@ -226,7 +231,9 @@ pub const BUNFIG_CONTENTS: &str = r#"[alias]
 "@client/" = "./app/client/src/generated/"
 "#;
 
-pub const ANCHOR_CONTENTS: &str = r#"[toolchain]
+pub fn anchor_contents(project_name: &str) -> String {
+    format!(
+        r#"[toolchain]
 package_manager = "bun"
 
 [features]
@@ -234,7 +241,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-bunchor_template = "7LBeQpPgzzjEWw4z7S5aJF3zyyqMFpKfMn1hSg7DKxL9"
+{} = "7LBeQpPgzzjEWw4z7S5aJF3zyyqMFpKfMn1hSg7DKxL9"
 
 [registry]
 url = "https://api.apr.dev"
@@ -245,9 +252,14 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "bun test --timeout 1000000 tests/*.test.ts"
-"#;
+"#,
+        project_name
+    )
+}
 
-pub const TEST_CONTENT: &str = r#"import {
+// TODO!: This shi ugly
+pub fn test_contents(const_name: &str) -> String {
+    let first_half = r#"import {
   assertAccountExists,
   createKeyPairSignerFromBytes,
   type Address,
@@ -255,8 +267,8 @@ pub const TEST_CONTENT: &str = r#"import {
   type TransactionSigner,
 } from "@solana/kit";
 import { describe, it, expect, beforeAll } from "bun:test";
-import {
-  BUNCHOR_TEMPLATE_PROGRAM_ADDRESS,
+import { "#;
+    let second_half = r#"
   COUNTER_DISCRIMINATOR,
   getCounterDecoder,
   getDecrementInstruction,
@@ -364,6 +376,12 @@ describe("counter", async () => {
   });
 });
 "#;
+    format!(
+        r#"{}
+  {},{}"#,
+        first_half, const_name, second_half
+    )
+}
 
 pub const GITIGNORE_CONTENTS: &str = r#".anchor
 .DS_Store

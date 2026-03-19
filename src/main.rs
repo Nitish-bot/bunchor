@@ -7,9 +7,10 @@ use clap::{Parser, Subcommand};
 
 mod consts;
 use crate::consts::{
-    codama_contents, package_json_contents, ANCHOR_CONTENTS, BUNFIG_CONTENTS, COUNTER_DECREMENT,
-    COUNTER_ERRORS, COUNTER_INCREMENT, COUNTER_INITIALIZE, COUNTER_INSTRUCTIONS_MOD, COUNTER_LIB,
-    COUNTER_STATE_COUNTER, COUNTER_STATE_MOD, GITIGNORE_CONTENTS, TEST_CONTENT, TS_CONFIG_CONTENTS,
+    anchor_contents, codama_contents, counter_lib, package_json_contents, test_contents,
+    BUNFIG_CONTENTS, COUNTER_DECREMENT, COUNTER_ERRORS, COUNTER_INCREMENT, COUNTER_INITIALIZE,
+    COUNTER_INSTRUCTIONS_MOD, COUNTER_STATE_COUNTER, COUNTER_STATE_MOD, GITIGNORE_CONTENTS,
+    TS_CONFIG_CONTENTS,
 };
 
 #[derive(Parser)]
@@ -50,7 +51,10 @@ fn main() -> Result<()> {
 
 fn bunchor_init(project_name: String) -> Result<()> {
     run_command(
-        Command::new("anchor").arg("init").arg(&project_name).arg("--no-install"),
+        Command::new("anchor")
+            .arg("init")
+            .arg(&project_name)
+            .arg("--no-install"),
         "anchor init",
         None,
     )?;
@@ -60,7 +64,8 @@ fn bunchor_init(project_name: String) -> Result<()> {
 
     clean_project(project_path, &tests_path)?;
     write_anchor_program(&project_name, project_path)?;
-    env_and_tests_setup(&project_name, project_path, &tests_path)?;
+    env_setup(&project_name, project_path)?;
+    tests_setup(&project_name, &tests_path)?;
 
     run_command(
         Command::new("bun").arg("install").current_dir(project_path),
@@ -69,7 +74,10 @@ fn bunchor_init(project_name: String) -> Result<()> {
     )?;
 
     run_command(
-        Command::new("anchor").arg("keys").arg("sync").current_dir(project_path),
+        Command::new("anchor")
+            .arg("keys")
+            .arg("sync")
+            .current_dir(project_path),
         "anchor keys sync",
         Some("Successfully synced anchor keys"),
     )?;
@@ -201,7 +209,7 @@ fn write_anchor_program(project_name: &str, project_path: &Path) -> Result<()> {
     fs::create_dir(&state_path).context("Failed to create state dir")?;
     fs::create_dir(&instructions_path).context("Failed to create instructions dir")?;
 
-    fs::write(program_path.join("lib.rs"), COUNTER_LIB)?;
+    fs::write(program_path.join("lib.rs"), counter_lib(project_name))?;
     fs::write(program_path.join("errors.rs"), COUNTER_ERRORS)?;
 
     fs::write(state_path.join("mod.rs"), COUNTER_STATE_MOD)?;
@@ -215,33 +223,35 @@ fn write_anchor_program(project_name: &str, project_path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn env_and_tests_setup(project_name: &str, project_path: &Path, tests_path: &Path) -> Result<()> {
+fn env_setup(project_name: &str, project_path: &Path) -> Result<()> {
     let package_json_path = project_path.join("package.json");
-    let package_json_contents = package_json_contents(project_name);
-
     let tsconfig_path = project_path.join("tsconfig.json");
-    let tsconfig_contents = TS_CONFIG_CONTENTS;
-
     let codama_json_path = project_path.join("codama.json");
-    let codama_contents = codama_contents(project_name);
-
     let bunfig_toml_path = project_path.join("bunfig.toml");
-    let bunfig_contents = BUNFIG_CONTENTS;
+    let anchor_toml_path = project_path.join("Anchor.toml");
+    let gitignore_path = project_path.join(".gitignore");
 
-    let anchor_toml_path = project_path.join("anchor.toml");
-    let anchor_contents = ANCHOR_CONTENTS;
+    fs::write(&package_json_path, package_json_contents(project_name))
+        .context("Failed to write package.json")?;
+    fs::write(&tsconfig_path, TS_CONFIG_CONTENTS).context("Failed to write tsconfig.json")?;
+    fs::write(&codama_json_path, codama_contents(project_name))
+        .context("Failed to write codama.json")?;
+    fs::write(&bunfig_toml_path, BUNFIG_CONTENTS).context("Failed to write bunfig.toml")?;
+    fs::write(&anchor_toml_path, anchor_contents(project_name))
+        .context("Failed to write anchor.toml")?;
+    fs::write(&gitignore_path, GITIGNORE_CONTENTS).context("Failed to write .gitignore")?;
+
+    Ok(())
+}
+
+fn tests_setup(project_name: &str, tests_path: &Path) -> Result<()> {
+    let const_name = format!(
+        "{}_PROGRAM_ADDRESS",
+        project_name.to_uppercase().replace('-', "_")
+    );
 
     let test_file_path = tests_path.join(format!("{}.test.ts", project_name));
-    let gitignore_path = project_path.join(".gitignore");
-    let gitignore_contents = GITIGNORE_CONTENTS;
-
-    fs::write(&package_json_path, package_json_contents).context("Failed to write package.json")?;
-    fs::write(&tsconfig_path, tsconfig_contents).context("Failed to write tsconfig.json")?;
-    fs::write(&codama_json_path, codama_contents).context("Failed to write codama.json")?;
-    fs::write(&bunfig_toml_path, bunfig_contents).context("Failed to write bunfig.toml")?;
-    fs::write(&anchor_toml_path, anchor_contents).context("Failed to write anchor.toml")?;
-    fs::write(&test_file_path, TEST_CONTENT).context("Failed to write test file")?;
-    fs::write(&gitignore_path, gitignore_contents).context("Failed to write .gitignore")?;
+    fs::write(&test_file_path, test_contents(&const_name)).context("Failed to write test file")?;
 
     Ok(())
 }
